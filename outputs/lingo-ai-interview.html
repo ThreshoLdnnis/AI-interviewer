@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>翎语智面 | Lingo AI Interview</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    :root {
+      --paper: #FDFBF7;
+      --ink: #1e293b;
+      --muted: #64748b;
+      --cyan-ink: #164e63;
+      --glass: rgba(255, 255, 255, 0.4);
+      --glass-border: rgba(255, 255, 255, 0.6);
+      --shadow: 0 24px 70px rgba(148, 163, 184, 0.32);
+      --green: #10b981;
+      --red: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    button:disabled { cursor: not-allowed; }
+
+    .font-mono {
+      font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+      color: var(--cyan-ink);
+    }
+
+    #ambient-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .ambient-blob {
+      position: absolute;
+      width: 36vw;
+      height: 36vw;
+      min-width: 360px;
+      min-height: 360px;
+      border-radius: 9999px;
+      filter: blur(140px);
+      opacity: 0.3;
+      transition: background 700ms ease, transform 900ms ease;
+      animation: ambientBreath 14s ease-in-out infinite alternate;
+    }
+
+    #ambient-left { left: -12vw; top: 18vh; background: #cbd5e1; animation-duration: 16s; }
+    #ambient-right { right: -12vw; top: 7vh; background: #e2e8f0; animation-duration: 19s; animation-delay: -4s; }
+    #ambient-bottom { left: 30vw; bottom: -17vw; background: #d1d5db; animation-duration: 22s; animation-delay: -7s; }
+
+    @keyframes ambientBreath {
+      0% { transform: scale(1) translate3d(0, 0, 0); }
+      100% { transform: scale(1.15) translate3d(2vw, -1vh, 0); }
+    }
+
+    .stage {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      padding: clamp(24px, 4vw, 56px);
+      opacity: 1;
+      transition: opacity 520ms ease, transform 520ms ease;
+      transform: translateY(0);
+    }
+
+    .stage.hidden {
+      display: none;
+    }
+
+    .stage.opacity-0 {
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+    }
+
+    .center-stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: var(--shadow);
+    }
+
+    .tracking-widest { letter-spacing: 0.16em; }
+
+    .title {
+      margin: 0;
+      font-size: clamp(44px, 7vw, 104px);
+      line-height: 0.95;
+      font-weight: 900;
+    }
+
+    .subtitle {
+      margin-top: 24px;
+      color: #64748b;
+      font-size: clamp(14px, 1.8vw, 18px);
+    }
+
+    .primary-btn, .ghost-btn, .danger-btn {
+      min-height: 46px;
+      padding: 0 22px;
+      border-radius: 999px;
+      color: #0f172a;
+      background: rgba(255,255,255,0.6);
+      border: 1px solid rgba(255,255,255,0.75);
+      box-shadow: 0 18px 45px rgba(148, 163, 184, 0.26);
+      transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease, background 180ms ease;
+    }
+
+    .primary-btn:hover, .ghost-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 6px rgba(16,185,129,0.08), 0 20px 56px rgba(16,185,129,0.22);
+      background: rgba(255,255,255,0.78);
+    }
+
+    .pulse-btn:hover {
+      animation: pulseGlow 1.25s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.25), 0 18px 45px rgba(148, 163, 184, 0.26); }
+      50% { box-shadow: 0 0 0 12px rgba(16,185,129,0.03), 0 20px 62px rgba(16,185,129,0.24); }
+    }
+
+    .stage-shell {
+      width: min(1180px, 100%);
+      height: min(760px, calc(100vh - 72px));
+      margin: 0 auto;
+      border-radius: 8px;
+      padding: clamp(20px, 3vw, 34px);
+      position: relative;
+    }
+
+    .stage-heading {
+      margin: 0 0 8px;
+      font-size: clamp(26px, 3.2vw, 44px);
+      line-height: 1.05;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    .stage-kicker {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    #stage-1 .assessment-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 28px;
+      height: calc(100% - 72px);
+    }
+
+    .control-panel, .viz-panel, .report-card, .side-card, .agent-card, .arena-card, .log-panel, .caption-box {
+      border-radius: 8px;
+      background: rgba(255,255,255,0.4);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: var(--shadow);
+    }
+
+    .control-panel, .viz-panel {
+      padding: 26px;
+      min-height: 0;
+    }
+
+    .range-row {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .range-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .range-value {
+      color: var(--cyan-ink);
+      font-size: 13px;
+    }
+
+    input[type="range"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      height: 22px;
+      background: transparent;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 2px;
+      background: linear-gradient(90deg, #0f766e, #94a3b8);
+      border-radius: 999px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      margin-top: -7px;
+      border-radius: 50%;
+      background: #FDFBF7;
+      border: 2px solid #10b981;
+      box-shadow: 0 0 0 5px rgba(16,185,129,0.12);
+    }
+
+    input[type="range"]::-moz-range-track {
+      height: 2px;
+      background: linear-gradient(90deg, #0f766e, #94a3b8);
+      border-radius: 999px;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #FDFBF7;
+      border: 2px solid #10b981;
+      box-shadow: 0 0 0 5px rgba(16,185,129,0.12);
+    }
+
+    #radarSvg, #reviewRadarSvg {
+      width: 100%;
+      height: 100%;
+      min-height: 360px;
+      display: block;
+    }
+
+    #assessmentPolygon {
+      transition: points 160ms ease;
+      fill: rgba(16, 185, 129, 0.2);
+      stroke: #10b981;
+      stroke-width: 3;
+    }
+
+    .stage-action {
+      position: absolute;
+      right: 34px;
+      bottom: 28px;
+    }
+
+    .roster {
+      display: flex;
+      gap: 16px;
+      margin-top: 26px;
+    }
+
+    .agent-card {
+      flex: 1;
+      min-height: 220px;
+      padding: 22px;
+      opacity: 0;
+      transform: translateY(18px);
+      animation: cardIn 620ms ease forwards;
+    }
+
+    .agent-card:nth-child(2) { animation-delay: 90ms; }
+    .agent-card:nth-child(3) { animation-delay: 180ms; }
+    .agent-card:nth-child(4) { animation-delay: 270ms; }
+    .agent-card:nth-child(5) { animation-delay: 360ms; }
+
+    @keyframes cardIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .agent-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 900;
+      margin-bottom: 42px;
+    }
+
+    .agent-name { font-size: 19px; font-weight: 850; margin-bottom: 8px; }
+    .agent-role { color: var(--muted); font-size: 12px; min-height: 34px; }
+    .danger-label { margin-top: 20px; font-size: 11px; color: var(--cyan-ink); }
+    .danger-track { height: 6px; border-radius: 999px; background: rgba(148,163,184,0.24); margin-top: 8px; overflow: hidden; }
+    .danger-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22c55e, #eab308, #ef4444); }
+
+    .duration-row {
+      margin-top: 34px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .duration-btn {
+      border-radius: 999px;
+      padding: 14px 20px;
+      background: rgba(255,255,255,0.42);
+      border: 1px solid rgba(255,255,255,0.7);
+      color: var(--ink);
+      box-shadow: 0 12px 30px rgba(148,163,184,0.18);
+      transition: 180ms ease;
+    }
+
+    .duration-btn.active {
+      color: #022c22;
+      background: rgba(16,185,129,0.18);
+      border-color: rgba(16,185,129,0.38);
+      box-shadow: 0 0 0 5px rgba(16,185,129,0.09), 0 18px 42px rgba(16,185,129,0.14);
+    }
+
+    #startInterview.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: var(--shadow);
+    }
+
+    #threeCanvas {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    #stage-3 {
+      padding: 24px;
+      pointer-events: none;
+    }
+
+    #stage-3 .arena-ui { position: relative; z-index: 3; width: 100%; height: 100%; pointer-events: none; }
+
+    .arena-card {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      padding: 18px 20px;
+      min-width: 270px;
+    }
+
+    .agent-status-name {
+      font-size: 24px;
+      font-weight: 900;
+      margin: 5px 0 0;
+    }
+
+    .agent-status-line { color: var(--muted); font-size: 12px; }
+
+    .caption-box {
+      position: absolute;
+      left: 50%;
+      bottom: 32px;
+      transform: translateX(-50%);
+      width: min(840px, calc(100vw - 48px));
+      min-height: 126px;
+      padding: 24px 28px;
+      font-size: clamp(18px, 2vw, 28px);
+      font-weight: 750;
+      line-height: 1.45;
+      color: var(--ink);
+    }
+
+    .log-panel {
+      position: absolute;
+      right: 24px;
+      bottom: 182px;
+      width: min(380px, calc(100vw - 48px));
+      height: 220px;
+      padding: 16px;
+      overflow: hidden;
+      font-size: 12px;
+      line-height: 1.65;
+      color: var(--cyan-ink);
+    }
+
+    .interrupt-line .false { color: #0f766e; font-weight: 900; }
+    .interrupt-line .true { color: #dc2626; font-weight: 950; }
+
+    .danger-btn {
+      position: absolute;
+      right: 42px;
+      bottom: 36px;
+      width: 124px;
+      height: 124px;
+      border-radius: 999px;
+      padding: 0 14px;
+      color: #7f1d1d;
+      font-weight: 950;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid rgba(239,68,68,0.22);
+      pointer-events: auto;
+    }
+
+    .danger-btn:active {
+      transform: scale(0.96);
+      box-shadow: 0 0 0 12px rgba(239,68,68,0.12), 0 20px 62px rgba(239,68,68,0.28);
+    }
+
+    .end-arena {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      pointer-events: auto;
+    }
+
+    .agent-switcher {
+      position: absolute;
+      left: 24px;
+      bottom: 32px;
+      display: flex;
+      gap: 9px;
+      pointer-events: auto;
+    }
+
+    .agent-chip {
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.48);
+      border: 1px solid rgba(255,255,255,0.7);
+      color: var(--ink);
+      box-shadow: 0 10px 28px rgba(148,163,184,0.18);
+    }
+
+    .agent-chip.active {
+      background: rgba(15,23,42,0.92);
+      color: #fff;
+    }
+
+    .report-layout {
+      display: grid;
+      grid-template-columns: 7fr 3fr;
+      gap: 24px;
+      height: calc(100% - 64px);
+    }
+
+    .report-main, .report-side {
+      min-height: 0;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .report-card, .side-card {
+      padding: 22px;
+      margin-bottom: 16px;
+    }
+
+    .rating {
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 950;
+      margin: 0 0 8px;
+    }
+
+    .action-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 14px;
+      color: var(--cyan-ink);
+    }
+
+    .action-list li {
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(148,163,184,0.22);
+    }
+
+    .stat {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: baseline;
+    }
+
+    .stat strong {
+      font-size: 28px;
+      color: #0f172a;
+    }
+
+    .report-actions {
+      position: absolute;
+      left: 34px;
+      bottom: 28px;
+      display: flex;
+      gap: 12px;
+    }
+
+    @media (max-width: 920px) {
+      html, body { overflow: auto; }
+      .stage { position: absolute; min-height: 100vh; }
+      .stage-shell { height: auto; min-height: calc(100vh - 48px); }
+      #stage-1 .assessment-grid, .report-layout { grid-template-columns: 1fr; }
+      .roster { flex-direction: column; }
+      .agent-card { min-height: 160px; }
+      .log-panel { display: none; }
+      .agent-switcher { display: none; }
+      .danger-btn { width: 106px; height: 106px; right: 24px; }
+      .caption-box { bottom: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="ambient-layer" aria-hidden="true">
+    <div id="ambient-left" class="ambient-blob"></div>
+    <div id="ambient-right" class="ambient-blob"></div>
+    <div id="ambient-bottom" class="ambient-blob"></div>
+  </div>
+
+  <canvas id="threeCanvas" hidden></canvas>
+
+  <section id="stage-0" class="stage center-stage">
+    <div>
+      <h1 class="title tracking-widest">LINGO AI INTERVIEW</h1>
+      <p class="subtitle font-mono">&gt; AGI 时代企业人才智选系统</p>
+      <button id="initSystem" class="primary-btn pulse-btn font-mono" style="margin-top:40px;">[ 系统初始化 ]</button>
+    </div>
+  </section>
+
+  <section id="stage-1" class="stage hidden opacity-0">
+    <div class="stage-shell glass">
+      <h2 class="stage-heading">能力维度评估</h2>
+      <p class="stage-kicker font-mono">&gt; Calibrate candidate cognitive vector before entering pressure arena.</p>
+      <div class="assessment-grid">
+        <div class="control-panel">
+          <div class="range-row">
+            <div class="range-meta"><span>逻辑拆解能力</span><span class="range-value" id="logicValue">72</span></div>
+            <input type="range" min="10" max="100" value="72" data-axis="logic" aria-label="逻辑拆解能力" />
+          </div>
+          <div class="range-row">
+            <div class="range-meta"><span>数理工程能力</span><span class="range-value" id="mathValue">64</span></div>
+            <input type="range" min="10" max="100" value="64" data-axis="math" aria-label="数理工程能力" />
+          </div>
+          <div class="range-row">
+            <div class="range-meta"><span>抗压稳定性</span><span class="range-value" id="stressValue">58</span></div>
+            <input type="range" min="10" max="100" value="58" data-axis="stress" aria-label="抗压稳定性" />
+          </div>
+          <div class="range-row">
+            <div class="range-meta"><span>业务全局观</span><span class="range-value" id="businessValue">69</span></div>
+            <input type="range" min="10" max="100" value="69" data-axis="business" aria-label="业务全局观" />
+          </div>
+        </div>
+        <div class="viz-panel">
+          <svg id="radarSvg" viewBox="0 0 420 420" role="img" aria-label="能力评估雷达图">
+            <g id="radarGrid"></g>
+            <polygon id="assessmentPolygon" points=""></polygon>
+            <g id="radarLabels"></g>
+          </svg>
+        </div>
+      </div>
+      <button id="saveAssessment" class="primary-btn stage-action font-mono">[ 保存评估设置 ]</button>
+    </div>
+  </section>
+
+  <section id="stage-2" class="stage hidden opacity-0">
+    <div class="stage-shell glass">
+      <h2 class="stage-heading">面试环境配置</h2>
+      <p class="stage-kicker font-mono">&gt; Assemble multi-agent pressure matrix and select the exposure window.</p>
+      <div class="roster" id="agentRoster"></div>
+      <div class="duration-row" id="durationRow">
+        <button class="duration-btn font-mono" data-duration="15 MINS (标准)">15 MINS (标准)</button>
+        <button class="duration-btn font-mono" data-duration="30 MINS (高压)">30 MINS (高压)</button>
+        <button class="duration-btn font-mono" data-duration="45 MINS (极限)">45 MINS (极限)</button>
+        <button class="duration-btn font-mono" data-duration="60 MINS (终局)">60 MINS (终局)</button>
+      </div>
+      <button id="startInterview" class="primary-btn stage-action font-mono disabled" disabled>[ 开始面试 ]</button>
+    </div>
+  </section>
+
+  <section id="stage-3" class="stage hidden opacity-0">
+    <div class="arena-ui">
+      <div class="arena-card">
+        <div class="agent-status-line font-mono">CURRENT SPEAKER / C-VECTOR</div>
+        <div id="currentAgentName" class="agent-status-name">破局者</div>
+        <div id="currentAgentDesc" class="agent-status-line">猩红黑曜石 / 锐化棱镜</div>
+      </div>
+      <button id="finishInterview" class="ghost-btn end-arena font-mono">[ 生成复盘报告 ]</button>
+      <div id="captionBox" class="caption-box">系统已接管候选人叙事链路，等待第一位考官发问。</div>
+      <div id="logPanel" class="log-panel font-mono">
+        <div>[Python Async Scheduler] API Stream Active...</div>
+        <div>[Agent Router] Breaker granted speaker lock.</div>
+        <div class="interrupt-line">INTERRUPT: <span id="interruptState" class="false">FALSE</span></div>
+      </div>
+      <div id="agentSwitcher" class="agent-switcher"></div>
+      <button id="interruptBtn" class="danger-btn font-mono">[ 强制打断<br />(HOLD) ]</button>
+    </div>
+  </section>
+
+  <section id="stage-4" class="stage hidden opacity-0">
+    <div class="stage-shell glass">
+      <h2 class="stage-heading">全景深度复盘与评估报告</h2>
+      <p class="stage-kicker font-mono">&gt; Post-review synthesis generated from adversarial interview trace.</p>
+      <div class="report-layout">
+        <main class="report-main">
+          <div class="report-card">
+            <p class="rating">综合面试评级：B+</p>
+            <p style="margin:0;color:#64748b;">逻辑链条需强化。候选人在高压追问下能维持基本结构，但关键数据锚点不足，量化模型解释存在回撤、样本外验证与异常工况论证缺口。</p>
+          </div>
+          <div class="report-card">
+            <h3 style="margin-top:0;">关键交锋复盘与 Action Items</h3>
+            <ul class="action-list font-mono">
+              <li>[00:04:12] 被破局者打断：候选人使用“大概提升很多”描述策略收益，缺少基准组、置信区间与回撤数据支撑。建议改写：收益提升 18.7%，最大回撤由 9.4% 降至 6.1%，样本外 Sharpe 稳定在 1.32。</li>
+              <li>[00:09:38] 细节控追问失败：在阐述量化模型时未说明特征漂移监控口径。建议补充 PSI 阈值、按周滚动窗口和触发重训策略。</li>
+              <li>[00:16:05] 战略家追问：业务目标与模型指标映射不够直接。建议先讲 GMV、转化率、履约成本，再落到 AUC、召回和线上 guardrail。</li>
+              <li>[00:21:44] 灰犀牛异常问题：面对极端噪声与黑天鹅工况时恢复速度较慢。建议准备“失效检测 - 降级策略 - 复盘闭环”三段式答案。</li>
+            </ul>
+          </div>
+        </main>
+        <aside class="report-side">
+          <div class="side-card">
+            <h3 style="margin-top:0;">认知偏误对撞雷达图</h3>
+            <svg id="reviewRadarSvg" viewBox="0 0 260 260" role="img" aria-label="认知偏误对撞雷达图">
+              <g id="reviewGrid"></g>
+              <polygon id="selfPolygon" fill="rgba(16,185,129,0.18)" stroke="#10b981" stroke-width="2"></polygon>
+              <polygon id="measuredPolygon" fill="rgba(239,68,68,0.14)" stroke="#ef4444" stroke-width="2"></polygon>
+            </svg>
+          </div>
+          <div class="side-card stat"><span>强制打断次数</span><strong id="interruptCountReport">3</strong></div>
+          <div class="side-card stat"><span>语速波动率</span><strong>12%</strong></div>
+          <div class="side-card stat"><span>抗压稳定性</span><strong>良好</strong></div>
+        </aside>
+      </div>
+      <div class="report-actions">
+        <button id="exportPdf" class="primary-btn font-mono">[ 导出面试报告 PDF ]</button>
+        <button id="endSystem" class="ghost-btn font-mono">[ 结束系统 ]</button>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const stages = [...document.querySelectorAll(".stage")];
+    const ambientBlobs = [
+      document.getElementById("ambient-left"),
+      document.getElementById("ambient-right"),
+      document.getElementById("ambient-bottom")
+    ];
+    const agentProfiles = [
+      {
+        key: "breaker",
+        short: "破",
+        name: "破局者",
+        role: "猩红黑曜石 / 锐化棱镜",
+        color: "#b91c1c",
+        ambient: ["#fca5a5", "#fecaca", "#ef4444"],
+        iconBg: "#991b1b",
+        danger: 92,
+        line: "你刚才说“整体效果不错”，请立刻给出样本外验证、回撤边界和失败案例。"
+      },
+      {
+        key: "detail",
+        short: "细",
+        name: "细节控",
+        role: "秩序织网 / Order Matrix",
+        color: "#0891b2",
+        ambient: ["#67e8f9", "#bae6fd", "#22d3ee"],
+        iconBg: "#0e7490",
+        danger: 84,
+        line: "停一下。这个指标的分母是什么？窗口期多长？异常值是截断、缩尾还是完整保留？"
+      },
+      {
+        key: "visionary",
+        short: "战",
+        name: "战略家",
+        role: "全息星盘 / Platinum Orbit",
+        color: "#334155",
+        ambient: ["#cbd5e1", "#f8fafc", "#94a3b8"],
+        iconBg: "#334155",
+        danger: 76,
+        line: "不要只解释模型。把它和业务飞轮、组织协作成本、长期护城河连起来。"
+      },
+      {
+        key: "glue",
+        short: "粘",
+        name: "粘合剂",
+        role: "翡翠莫比乌斯环",
+        color: "#059669",
+        ambient: ["#86efac", "#bbf7d0", "#34d399"],
+        iconBg: "#047857",
+        danger: 48,
+        line: "我帮你重组一下问题：你真正想证明的是，方案在高压环境中仍然可协作、可解释、可复盘。"
+      },
+      {
+        key: "wildcard",
+        short: "灰",
+        name: "灰犀牛",
+        role: "混沌源石 / Glitch Cube",
+        color: "#6d28d9",
+        ambient: ["#c4b5fd", "#ddd6fe", "#a78bfa"],
+        iconBg: "#5b21b6",
+        danger: 97,
+        line: "假设明天监管规则改写、数据源失真、竞品复制你的策略。你的系统第一小时怎么自救？"
+      }
+    ];
+
+    const assessmentValues = { logic: 72, math: 64, stress: 58, business: 69 };
+    let selectedDuration = "";
+    let currentStage = 0;
+    let currentAgentIndex = 0;
+    let interruptCount = 0;
+    let interrupting = false;
+    let typeTween = null;
+
+    let renderer, scene, camera, currentMesh, currentGroup;
+    let animationStarted = false;
+    let smoothedAmplitude = 0;
+    let agentStartedAt = 0;
+    let audioContext, analyser, frequencyData, oscillator, gainNode;
+
+    function routeTo(index) {
+      const outgoing = stages[currentStage];
+      const incoming = document.getElementById(`stage-${index}`);
+      if (currentStage === index) return;
+      outgoing.classList.add("opacity-0");
+      setTimeout(() => {
+        outgoing.classList.add("hidden");
+        incoming.classList.remove("hidden");
+        requestAnimationFrame(() => incoming.classList.remove("opacity-0"));
+        currentStage = index;
+      }, 480);
+    }
+
+    function updateAmbientColor(agentOrMode) {
+      const paletteMap = {
+        default: ["#cbd5e1", "#e2e8f0", "#d1d5db"],
+        alarm: ["#ef4444", "#f87171", "#dc2626"]
+      };
+      const palette = typeof agentOrMode === "string"
+        ? paletteMap[agentOrMode] || paletteMap.default
+        : agentOrMode.ambient;
+      ambientBlobs.forEach((blob, index) => {
+        blob.style.background = palette[index];
+      });
+    }
+
+    function drawRadar(svgId, gridId, polygonId, values, options = {}) {
+      const svg = document.getElementById(svgId);
+      const grid = document.getElementById(gridId);
+      const polygon = document.getElementById(polygonId);
+      const size = options.size || 420;
+      const center = size / 2;
+      const radius = options.radius || size * 0.34;
+      const labels = options.labels || ["逻辑拆解", "数理工程", "抗压稳定", "业务全局"];
+      const keys = options.keys || ["logic", "math", "stress", "business"];
+      grid.innerHTML = "";
+      for (let ring = 1; ring <= 4; ring += 1) {
+        const r = radius * ring / 4;
+        const points = keys.map((_, i) => radarPoint(center, center, r, i, keys.length)).join(" ");
+        const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        poly.setAttribute("points", points);
+        poly.setAttribute("fill", "none");
+        poly.setAttribute("stroke", "rgba(100,116,139,0.26)");
+        poly.setAttribute("stroke-width", "1");
+        grid.appendChild(poly);
+      }
+      keys.forEach((_, i) => {
+        const [x, y] = radarPoint(center, center, radius, i, keys.length).split(",").map(Number);
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", center);
+        line.setAttribute("y1", center);
+        line.setAttribute("x2", x);
+        line.setAttribute("y2", y);
+        line.setAttribute("stroke", "rgba(100,116,139,0.24)");
+        grid.appendChild(line);
+      });
+      const labelGroup = svg.querySelector("#radarLabels");
+      if (labelGroup) {
+        labelGroup.innerHTML = "";
+        labels.forEach((label, i) => {
+          const [x, y] = radarPoint(center, center, radius + 34, i, keys.length).split(",").map(Number);
+          const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          text.setAttribute("x", x);
+          text.setAttribute("y", y);
+          text.setAttribute("text-anchor", "middle");
+          text.setAttribute("dominant-baseline", "middle");
+          text.setAttribute("fill", "#475569");
+          text.setAttribute("font-size", "13");
+          text.textContent = label;
+          labelGroup.appendChild(text);
+        });
+      }
+      const dataPoints = keys.map((key, i) => radarPoint(center, center, radius * (values[key] / 100), i, keys.length)).join(" ");
+      polygon.setAttribute("points", dataPoints);
+    }
+
+    function radarPoint(cx, cy, radius, index, total) {
+      const angle = -Math.PI / 2 + (Math.PI * 2 * index / total);
+      return `${(cx + Math.cos(angle) * radius).toFixed(2)},${(cy + Math.sin(angle) * radius).toFixed(2)}`;
+    }
+
+    function bindAssessment() {
+      document.querySelectorAll("#stage-1 input[type='range']").forEach(input => {
+        input.addEventListener("input", event => {
+          const key = event.target.dataset.axis;
+          const value = Number(event.target.value);
+          assessmentValues[key] = value;
+          document.getElementById(`${key}Value`).textContent = value;
+          drawRadar("radarSvg", "radarGrid", "assessmentPolygon", assessmentValues);
+        });
+      });
+      drawRadar("radarSvg", "radarGrid", "assessmentPolygon", assessmentValues);
+    }
+
+    function renderRoster() {
+      const roster = document.getElementById("agentRoster");
+      roster.innerHTML = agentProfiles.map(agent => `
+        <article class="agent-card">
+          <div class="agent-icon" style="background:${agent.iconBg};">${agent.short}</div>
+          <div class="agent-name">${agent.name}</div>
+          <div class="agent-role">${agent.role}</div>
+          <div class="danger-label font-mono">DANGER LEVEL</div>
+          <div class="danger-track"><div class="danger-fill" style="width:${agent.danger}%"></div></div>
+        </article>
+      `).join("");
+    }
+
+    function bindDuration() {
+      const startBtn = document.getElementById("startInterview");
+      document.querySelectorAll(".duration-btn").forEach(button => {
+        button.addEventListener("click", () => {
+          selectedDuration = button.dataset.duration;
+          document.querySelectorAll(".duration-btn").forEach(item => item.classList.remove("active"));
+          button.classList.add("active");
+          startBtn.disabled = false;
+          startBtn.classList.remove("disabled");
+        });
+      });
+    }
+
+    function initThreeJS() {
+      if (renderer) return;
+      const canvas = document.getElementById("threeCanvas");
+      canvas.hidden = false;
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(0, 0, 7);
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x000000, 0);
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+
+      const key = new THREE.DirectionalLight(0xffffff, 1.4);
+      key.position.set(4, 5, 7);
+      scene.add(key);
+      const rim = new THREE.DirectionalLight(0xdff7ff, 0.9);
+      rim.position.set(-5, 2.5, 4);
+      scene.add(rim);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+
+      window.addEventListener("resize", () => {
+        if (!renderer) return;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      setupAudioAnalyser();
+      switchAgent("破局者");
+      if (!animationStarted) animateThree();
+    }
+
+    function setupAudioAnalyser() {
+      try {
+        const AudioCtor = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioCtor();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 128;
+        frequencyData = new Uint8Array(analyser.frequencyBinCount);
+        oscillator = audioContext.createOscillator();
+        gainNode = audioContext.createGain();
+        oscillator.type = "sawtooth";
+        oscillator.frequency.value = 72;
+        gainNode.gain.value = 0.0001;
+        oscillator.connect(analyser);
+        analyser.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.start();
+      } catch (error) {
+        console.warn("Audio analyser fallback active", error);
+      }
+    }
+
+    function makeHalo(color, radius = 1.75, opacity = 0.18) {
+      const halo = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 48, 48),
+        new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity,
+          wireframe: true,
+          depthWrite: false
+        })
+      );
+      halo.userData.motion = "halo";
+      return halo;
+    }
+
+    function makeEdges(geometry, color, opacity = 0.42) {
+      return new THREE.LineSegments(
+        new THREE.EdgesGeometry(geometry),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity })
+      );
+    }
+
+    function makeLineSegments(points, color, opacity = 0.25) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+      return new THREE.LineSegments(
+        geometry,
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity })
+      );
+    }
+
+    function buildAgentObject(agent) {
+      const group = new THREE.Group();
+      group.userData.agentKey = agent.key;
+      group.userData.floatSeed = Math.random() * Math.PI * 2;
+      const color = new THREE.Color(agent.color);
+      let object;
+      if (agent.key === "breaker") {
+        object = new THREE.Group();
+        const bodyGeometry = new THREE.IcosahedronGeometry(1.42, 2);
+        const body = new THREE.Mesh(
+          bodyGeometry,
+          new THREE.MeshPhysicalMaterial({
+            color,
+            metalness: 0.92,
+            roughness: 0.14,
+            clearcoat: 1,
+            reflectivity: 0.9,
+            emissive: new THREE.Color("#3f0202"),
+            emissiveIntensity: 0.24
+          })
+        );
+        body.userData.motion = "core";
+        object.add(body);
+        const edge = makeEdges(bodyGeometry, "#fecaca", 0.32);
+        edge.userData.motion = "edge";
+        object.add(edge);
+        const inner = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(0.72, 1),
+          new THREE.MeshBasicMaterial({ color: "#ef4444", transparent: true, opacity: 0.22, wireframe: true })
+        );
+        inner.userData.motion = "inner";
+        object.add(inner);
+        object.add(makeHalo("#ef4444", 1.85, 0.12));
+        const spikeMaterial = new THREE.MeshBasicMaterial({ color: "#ef4444", transparent: true, opacity: 0.5, depthWrite: false });
+        for (let i = 0; i < 14; i += 1) {
+          const spike = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.74, 5), spikeMaterial);
+          const angle = i / 14 * Math.PI * 2;
+          const y = Math.sin(i * 1.7) * 0.74;
+          const radial = 1.38 + (i % 3) * 0.08;
+          spike.position.set(Math.cos(angle) * radial, y, Math.sin(angle) * radial * 0.72);
+          spike.lookAt(spike.position.clone().multiplyScalar(2));
+          spike.scale.setScalar(0.04);
+          spike.visible = false;
+          spike.userData.motion = "spike";
+          object.add(spike);
+        }
+      } else if (agent.key === "detail") {
+        object = new THREE.Group();
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        const base = [];
+        const target = [];
+        const offsets = [];
+        const grid = 8;
+        const spacing = 0.34;
+        for (let i = 0; i < 640; i += 1) {
+          const bx = (Math.random() - 0.5) * 3.1;
+          const by = (Math.random() - 0.5) * 3.1;
+          const bz = (Math.random() - 0.5) * 3.1;
+          const gx = ((i % grid) - (grid - 1) / 2) * spacing;
+          const gy = ((Math.floor(i / grid) % grid) - (grid - 1) / 2) * spacing;
+          const gz = ((Math.floor(i / (grid * grid)) % grid) - (grid - 1) / 2) * spacing;
+          vertices.push(bx, by, bz);
+          base.push(bx, by, bz);
+          target.push(gx, gy, gz);
+          offsets.push(Math.random() * Math.PI * 2);
+        }
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+        const points = new THREE.Points(geometry, new THREE.PointsMaterial({ color, size: 0.026, transparent: true, opacity: 0.84 }));
+        points.userData.motion = "detailPoints";
+        points.userData.base = base;
+        points.userData.target = target;
+        points.userData.offsets = offsets;
+        object.add(points);
+        const cubeGeometry = new THREE.BoxGeometry(2.72, 2.72, 2.72, 7, 7, 7);
+        const lattice = makeEdges(cubeGeometry, "#0891b2", 0.22);
+        lattice.userData.motion = "lattice";
+        object.add(lattice);
+        const axisLines = [];
+        for (let i = -3; i <= 3; i += 1) {
+          const v = i * spacing;
+          axisLines.push(-1.36, v, -1.36, 1.36, v, -1.36);
+          axisLines.push(v, -1.36, 1.36, v, 1.36, 1.36);
+        }
+        const matrixLines = makeLineSegments(axisLines, "#67e8f9", 0.18);
+        matrixLines.userData.motion = "matrixLines";
+        object.add(matrixLines);
+      } else if (agent.key === "visionary") {
+        object = new THREE.Group();
+        for (let i = 0; i < 5; i += 1) {
+          const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(0.74 + i * 0.22, i % 2 ? 0.018 : 0.026, 18, 140),
+            new THREE.MeshPhysicalMaterial({
+              color: i === 2 ? "#f8fafc" : "#334155",
+              metalness: 0.72,
+              roughness: 0.11,
+              emissive: "#ffffff",
+              emissiveIntensity: i === 2 ? 0.34 : 0.06
+            })
+          );
+          ring.rotation.x = i * 0.58 + 0.28;
+          ring.rotation.y = i * 0.44;
+          ring.userData.motion = "orbit";
+          ring.userData.speed = 0.08 + i * 0.015;
+          object.add(ring);
+        }
+        const core = new THREE.Mesh(new THREE.SphereGeometry(0.24, 40, 40), new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.92 }));
+        core.userData.motion = "coreLight";
+        object.add(core);
+        object.add(makeHalo("#e2e8f0", 1.78, 0.14));
+      } else if (agent.key === "glue") {
+        object = new THREE.Group();
+        const knotGeometry = new THREE.TorusKnotGeometry(1.02, 0.2, 220, 28, 2, 3);
+        const mainKnot = new THREE.Mesh(
+          knotGeometry,
+          new THREE.MeshPhysicalMaterial({ color, metalness: 0.08, roughness: 0.06, transmission: 0.36, transparent: true, opacity: 0.74, clearcoat: 1 })
+        );
+        mainKnot.userData.motion = "knot";
+        object.add(mainKnot);
+        const ghost = new THREE.Mesh(
+          new THREE.TorusKnotGeometry(1.06, 0.075, 220, 18, 2, 3),
+          new THREE.MeshBasicMaterial({ color: "#a7f3d0", transparent: true, opacity: 0.22, wireframe: true })
+        );
+        ghost.rotation.y = Math.PI / 2;
+        ghost.userData.motion = "knotGhost";
+        object.add(ghost);
+        const pearl = new THREE.Mesh(new THREE.SphereGeometry(0.18, 32, 32), new THREE.MeshBasicMaterial({ color: "#ecfdf5", transparent: true, opacity: 0.82 }));
+        pearl.userData.motion = "pearl";
+        object.add(pearl);
+        object.add(makeHalo("#34d399", 1.66, 0.12));
+      } else {
+        object = new THREE.Group();
+        for (let i = 0; i < 5; i += 1) {
+          const size = 1.62 - i * 0.16;
+          const geometry = new THREE.BoxGeometry(size, size, size);
+          const cube = new THREE.Mesh(
+            geometry,
+            new THREE.MeshPhysicalMaterial({ color: i % 2 ? "#6d28d9" : "#312e81", metalness: 0.6, roughness: 0.24, transparent: true, opacity: 0.68 })
+          );
+          cube.rotation.set(i * 0.42, i * 0.64, i * 0.2);
+          cube.userData.motion = "glitchCube";
+          cube.userData.seed = i * 1.7;
+          object.add(cube);
+          const edge = makeEdges(geometry, i % 2 ? "#c4b5fd" : "#8b5cf6", 0.3);
+          edge.rotation.copy(cube.rotation);
+          edge.userData.motion = "glitchEdge";
+          edge.userData.seed = i * 1.7 + 0.5;
+          object.add(edge);
+        }
+        object.add(makeHalo("#8b5cf6", 1.86, 0.1));
+      }
+      object.userData.agentKey = agent.key;
+      group.add(object);
+      return group;
+    }
+
+    function switchAgent(agentName) {
+      const agent = agentProfiles.find(item => item.name === agentName || item.key === agentName) || agentProfiles[0];
+      currentAgentIndex = agentProfiles.indexOf(agent);
+      smoothedAmplitude = 0;
+      if (currentGroup) {
+        scene.remove(currentGroup);
+      }
+      currentGroup = buildAgentObject(agent);
+      currentGroup.scale.setScalar(0.82);
+      currentGroup.position.y = -0.08;
+      currentGroup.rotation.set(0.08, -0.2, 0);
+      currentMesh = currentGroup.children[0];
+      scene.add(currentGroup);
+      agentStartedAt = performance.now();
+      gsap.to(currentGroup.scale, { x: 1, y: 1, z: 1, duration: 0.85, ease: "power3.out" });
+      updateAmbientColor(agent);
+      document.getElementById("currentAgentName").textContent = agent.name;
+      document.getElementById("currentAgentDesc").textContent = agent.role;
+      document.querySelectorAll(".agent-chip").forEach(chip => chip.classList.toggle("active", chip.dataset.agent === agent.key));
+      typeCaption(agent.line);
+      appendLog(`[Agent Router] ${agent.name} speaker lock acquired.`);
+    }
+
+    function animateThree() {
+      animationStarted = true;
+      requestAnimationFrame(animateThree);
+      if (!renderer || !currentGroup) return;
+      const now = performance.now();
+      const time = now * 0.001;
+      const localTime = (now - agentStartedAt) * 0.001;
+      let amplitude = 0.18 + Math.sin(time * 1.25) * 0.03;
+      if (analyser && frequencyData) {
+        analyser.getByteFrequencyData(frequencyData);
+        const raw = frequencyData.reduce((sum, value) => sum + value, 0) / frequencyData.length / 255;
+        amplitude = Math.min(0.42, raw * 0.55);
+        oscillator.frequency.value = 54 + amplitude * 70 + currentAgentIndex * 10;
+      }
+      const agent = agentProfiles[currentAgentIndex];
+      smoothedAmplitude += (amplitude - smoothedAmplitude) * 0.055;
+      const floatY = Math.sin(time * 0.72 + currentGroup.userData.floatSeed) * 0.11;
+      const breath = Math.sin(time * 0.9 + currentAgentIndex) * 0.018;
+      const pulse = 1 + smoothedAmplitude * 0.11 + breath + (interrupting ? 0.055 : 0);
+      currentGroup.scale.set(pulse, pulse, pulse);
+      currentGroup.position.y = -0.08 + floatY;
+      currentGroup.rotation.y += 0.0018 + smoothedAmplitude * 0.0024;
+      currentGroup.rotation.x = Math.sin(time * 0.42) * 0.055 + 0.08;
+
+      currentGroup.traverse(part => {
+        const motion = part.userData.motion;
+        if (!motion) return;
+
+        if (motion === "halo") {
+          const haloScale = 1 + Math.sin(time * 0.8) * 0.035 + smoothedAmplitude * 0.08;
+          part.scale.setScalar(haloScale);
+          part.rotation.y -= 0.0012;
+        }
+
+        if (motion === "edge") {
+          part.rotation.y -= 0.0014;
+          part.rotation.z = Math.sin(time * 0.34) * 0.05;
+        }
+
+        if (motion === "inner") {
+          part.rotation.x += 0.0024;
+          part.rotation.y -= 0.002;
+        }
+
+        if (motion === "spike") {
+          const target = interrupting ? 1 : 0.04;
+          const next = part.scale.x + (target - part.scale.x) * 0.12;
+          part.scale.setScalar(next);
+          part.visible = next > 0.08;
+        }
+
+        if (motion === "detailPoints" && part.geometry.attributes.position) {
+          const positions = part.geometry.attributes.position.array;
+          const base = part.userData.base;
+          const target = part.userData.target;
+          const offsets = part.userData.offsets;
+          const orderMix = interrupting ? 0.86 : 0.36 + Math.sin(localTime * 0.36) * 0.08;
+          for (let i = 0; i < positions.length; i += 3) {
+            const pointIndex = i / 3;
+            const drift = Math.sin(time * 0.55 + offsets[pointIndex]) * 0.035;
+            positions[i] = base[i] * (1 - orderMix) + target[i] * orderMix + drift;
+            positions[i + 1] = base[i + 1] * (1 - orderMix) + target[i + 1] * orderMix + Math.cos(time * 0.5 + offsets[pointIndex]) * 0.028;
+            positions[i + 2] = base[i + 2] * (1 - orderMix) + target[i + 2] * orderMix;
+          }
+          part.geometry.attributes.position.needsUpdate = true;
+          part.rotation.y += 0.001;
+        }
+
+        if (motion === "lattice" || motion === "matrixLines") {
+          part.material.opacity = interrupting ? 0.34 : 0.18 + smoothedAmplitude * 0.08;
+          part.rotation.y -= 0.0009;
+        }
+
+        if (motion === "orbit") {
+          const speed = part.userData.speed || 0.08;
+          part.rotation.z += speed * 0.012;
+          part.rotation.x += speed * 0.006;
+        }
+
+        if (motion === "coreLight") {
+          const lightScale = 1 + smoothedAmplitude * 0.42 + Math.sin(time * 1.2) * 0.04;
+          part.scale.setScalar(lightScale);
+          part.material.opacity = 0.78 + smoothedAmplitude * 0.22;
+        }
+
+        if (motion === "knot") {
+          part.rotation.z += 0.0016;
+        }
+
+        if (motion === "knotGhost") {
+          part.rotation.y -= 0.0011;
+          part.material.opacity = 0.18 + Math.sin(time * 0.72) * 0.045;
+        }
+
+        if (motion === "pearl") {
+          part.position.set(Math.sin(time * 0.62) * 0.36, Math.cos(time * 0.52) * 0.14, Math.cos(time * 0.62) * 0.36);
+        }
+
+        if (motion === "glitchCube" || motion === "glitchEdge") {
+          const seed = part.userData.seed || 0;
+          part.rotation.x += 0.0011 + seed * 0.00005;
+          part.rotation.y -= 0.0013 + seed * 0.00004;
+          const glitch = interrupting ? Math.sin(time * 14 + seed) * 0.018 : Math.sin(time * 1.6 + seed) * 0.006;
+          part.position.x = glitch;
+          part.position.y = Math.cos(time * 1.2 + seed) * 0.006;
+          if (part.material) {
+            part.material.opacity = motion === "glitchEdge" ? 0.26 + smoothedAmplitude * 0.12 : 0.62 + smoothedAmplitude * 0.08;
+            if (part.material.emissive) {
+              part.material.emissive = new THREE.Color(interrupting ? "#7c3aed" : "#080018");
+              part.material.emissiveIntensity = interrupting ? 0.32 : 0.04;
+            }
+          }
+        }
+      });
+      renderer.render(scene, camera);
+    }
+
+    function typeCaption(text) {
+      const caption = document.getElementById("captionBox");
+      if (typeTween) typeTween.kill();
+      caption.style.color = "var(--ink)";
+      caption.style.fontWeight = "750";
+      caption.textContent = "";
+      const state = { count: 0 };
+      typeTween = gsap.to(state, {
+        count: text.length,
+        duration: Math.min(3.4, 0.045 * text.length),
+        ease: "none",
+        onUpdate: () => {
+          caption.textContent = text.slice(0, Math.floor(state.count));
+        }
+      });
+    }
+
+    function appendLog(line) {
+      const panel = document.getElementById("logPanel");
+      const div = document.createElement("div");
+      div.textContent = line;
+      panel.appendChild(div);
+      panel.scrollTop = panel.scrollHeight;
+      while (panel.children.length > 10) panel.removeChild(panel.children[0]);
+    }
+
+    function bindInterruptEngine() {
+      const button = document.getElementById("interruptBtn");
+      const caption = document.getElementById("captionBox");
+      const state = document.getElementById("interruptState");
+
+      const hold = () => {
+        interrupting = true;
+        interruptCount += 1;
+        updateAmbientColor("alarm");
+        if (typeTween) typeTween.kill();
+        gsap.to(caption, { color: "#dc2626", fontWeight: 950, duration: 0.12 });
+        caption.textContent = "> 拦截大模型数据流，候选人抢麦输入中...";
+        state.textContent = "TRUE";
+        state.className = "true";
+        appendLog("[DeepSeek Stream Halted]");
+        appendLog("[Interrupt Engine] Candidate uplink override granted.");
+      };
+
+      const release = () => {
+        if (!interrupting) return;
+        interrupting = false;
+        const agent = agentProfiles[currentAgentIndex];
+        updateAmbientColor(agent);
+        state.textContent = "FALSE";
+        state.className = "false";
+        typeCaption(agent.line);
+        appendLog("[DeepSeek Stream Resumed]");
+      };
+
+      button.addEventListener("mousedown", hold);
+      button.addEventListener("mouseup", release);
+      button.addEventListener("mouseleave", release);
+      button.addEventListener("touchstart", event => { event.preventDefault(); hold(); }, { passive: false });
+      button.addEventListener("touchend", release);
+    }
+
+    function renderAgentSwitcher() {
+      const switcher = document.getElementById("agentSwitcher");
+      switcher.innerHTML = agentProfiles.map(agent => `<button class="agent-chip font-mono" data-agent="${agent.key}" title="${agent.name}">${agent.short}</button>`).join("");
+      switcher.querySelectorAll(".agent-chip").forEach(button => {
+        button.addEventListener("click", () => switchAgent(button.dataset.agent));
+      });
+    }
+
+    function drawReviewRadar() {
+      drawRadar("reviewRadarSvg", "reviewGrid", "selfPolygon", assessmentValues, {
+        size: 260,
+        radius: 82,
+        labels: [],
+        keys: ["logic", "math", "stress", "business"]
+      });
+      const measured = {
+        logic: Math.max(18, assessmentValues.logic - 14),
+        math: Math.max(18, assessmentValues.math - 9),
+        stress: Math.max(18, assessmentValues.stress + 6),
+        business: Math.max(18, assessmentValues.business - 18)
+      };
+      const points = ["logic", "math", "stress", "business"].map((key, i) => radarPoint(130, 130, 82 * (measured[key] / 100), i, 4)).join(" ");
+      document.getElementById("measuredPolygon").setAttribute("points", points);
+      document.getElementById("interruptCountReport").textContent = Math.max(3, interruptCount);
+    }
+
+    function exportReport() {
+      window.print();
+    }
+
+    function bindNavigation() {
+      document.getElementById("initSystem").addEventListener("click", () => routeTo(1));
+      document.getElementById("saveAssessment").addEventListener("click", () => routeTo(2));
+      document.getElementById("startInterview").addEventListener("click", async () => {
+        if (!selectedDuration) return;
+        routeTo(3);
+        setTimeout(() => {
+          initThreeJS();
+          if (audioContext && audioContext.state === "suspended") audioContext.resume();
+        }, 360);
+      });
+      document.getElementById("finishInterview").addEventListener("click", () => {
+        drawReviewRadar();
+        routeTo(4);
+      });
+      document.getElementById("exportPdf").addEventListener("click", exportReport);
+      document.getElementById("endSystem").addEventListener("click", () => {
+        updateAmbientColor("default");
+        routeTo(0);
+      });
+    }
+
+    function cycleAgents() {
+      setInterval(() => {
+        if (currentStage !== 3 || interrupting || !scene) return;
+        const next = agentProfiles[(currentAgentIndex + 1) % agentProfiles.length];
+        switchAgent(next.key);
+      }, 11200);
+    }
+
+    function boot() {
+      bindAssessment();
+      renderRoster();
+      bindDuration();
+      renderAgentSwitcher();
+      bindInterruptEngine();
+      bindNavigation();
+      cycleAgents();
+      updateAmbientColor("default");
+    }
+
+    boot();
+  </script>
+</body>
+</html>
